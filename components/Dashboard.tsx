@@ -45,7 +45,7 @@ export default function Dashboard({ onNavigate }: { onNavigate: (t: TabId) => vo
   if (isEmpty) {
     return (
       <section className="card">
-        <h2 className="card-title">به کاردان خوش آمدی 👋</h2>
+        <h2 className="card-title">به کارگردان خوش آمدی 👋</h2>
         <p className="inbox-intro">
           این سیستم قرار نیست زندگی را بدون استرس کند؛ قرار است نگذارد استرس، مدیر زندگی تو
           باشد. جریان کار ساده است:

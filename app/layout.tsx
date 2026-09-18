@@ -3,7 +3,7 @@ import '@fontsource-variable/vazirmatn';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'کاردان | سیستم‌عامل زندگی',
+  title: 'کارگردان | سیستم‌عامل زندگی',
   description:
     'تخلیه‌ی ذهن، تفکیک مهم از فوری، و سقف جبهه‌های فعال — سیستم‌عامل زندگی شخصی. داده‌ها فقط در مرورگر شما ذخیره می‌شوند.',
 };

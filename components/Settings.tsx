@@ -25,7 +25,7 @@ export default function SettingsView() {
     f.text().then((raw) => {
       const parsed = parseState(raw);
       if (!parsed) {
-        window.alert('این فایل پشتیبان معتبر کاردان نیست.');
+        window.alert('این فایل پشتیبان معتبر کارگردان نیست.');
         return;
       }
       if (window.confirm('داده‌های فعلی با محتوای فایل جایگزین شود؟')) {
@@ -119,7 +119,7 @@ export default function SettingsView() {
         </div>
 
         <p className="quote">
-          داده‌های تو هرگز از مرورگرت خارج نمی‌شود — کاردان هیچ سروری ندارد؛ همه‌چیز همین‌جا،
+          داده‌های تو هرگز از مرورگرت خارج نمی‌شود — کارگردان هیچ سروری ندارد؛ همه‌چیز همین‌جا،
           در دستگاه توست.
         </p>
       </section>

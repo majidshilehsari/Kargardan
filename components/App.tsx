@@ -60,7 +60,7 @@ export default function App() {
         <div className="brand">
           <div className="logo">ک</div>
           <div>
-            <h1>کاردان</h1>
+            <h1>کارگردان</h1>
             <p className="tagline">سیستم‌عامل زندگی — نه کار بیشتر؛ تسلط بیشتر</p>
           </div>
         </div>
