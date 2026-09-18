@@ -8,14 +8,41 @@ import InboxView from './Inbox';
 import TasksBoard from './TasksBoard';
 import ProjectsView from './Projects';
 import SettingsView from './Settings';
+import SuggestionsView from './Suggestions';
+import AgentPanel from './AgentPanel';
+import ChartsView from './Charts';
+import RecycleBinView from './RecycleBin';
+import { GlobalProgress } from './Busy';
 
-export type TabId = 'dash' | 'inbox' | 'tasks' | 'projects' | 'settings';
+export type TabId =
+  | 'suggestions'
+  | 'agent'
+  | 'dash'
+  | 'inbox'
+  | 'tasks'
+  | 'projects'
+  | 'charts'
+  | 'trash'
+  | 'settings';
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: 'dash', label: 'داشبورد', icon: '🏠' },
+/**
+ * چهار تب اصلی — در نواری چسبان زیر هدر می‌مانند و همیشه دم دست‌اند.
+ */
+const PRIMARY_TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'suggestions', label: 'پیشنهادات ایجنت', icon: '🤝' },
   { id: 'inbox', label: 'صندوق ذهن', icon: '🧠' },
   { id: 'tasks', label: 'کارها', icon: '📋' },
   { id: 'projects', label: 'پروژه‌ها', icon: '🚀' },
+];
+
+/**
+ * تب‌های کم‌کاربردتر — در هدر، یک پله عقب‌تر از چهار تب اصلی.
+ */
+const SECONDARY_TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'dash', label: 'داشبورد', icon: '🏠' },
+  { id: 'agent', label: 'ایجنت همکار', icon: '🔌' },
+  { id: 'charts', label: 'نمودارها', icon: '📊' },
+  { id: 'trash', label: 'سطل بازیافت', icon: '🗑' },
   { id: 'settings', label: 'تنظیمات', icon: '⚙️' },
 ];
 
@@ -50,55 +77,200 @@ function ThemeToggle() {
   );
 }
 
+/**
+ * هشدار فقط وقتی چیزی درست نیست.
+ * وقتی دیتابیس وصل است و همه‌چیز خوب پیش می‌رود، هیچ چیزی نشان داده نمی‌شود —
+ * وضعیت اتصال در «تنظیمات → وضعیت دیتابیس» است.
+ */
+function SyncNotice() {
+  const { source, syncError } = useStore();
+
+  if (!syncError && source === 'db') return null;
+
+  const isError = Boolean(syncError);
+  const label = isError ? '⚠️ ' + syncError : '💾 فقط در این مرورگر';
+
+  return (
+    <span
+      className={`sync-badge ${isError ? 'sync-warn' : 'sync-local'}`}
+      title={syncError || 'دیتابیس وصل نیست؛ داده‌ها فعلاً فقط در این مرورگر ذخیره می‌شوند'}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** اگر دیتابیس خالی است و مرورگر داده دارد، پیشنهاد انتقال می‌دهد (هیچ‌وقت خودکار) */
+function ImportBanner() {
+  const { canImportLocal, importLocal, state } = useStore();
+  const [busy, setBusy] = useState(false);
+  const [hidden, setHidden] = useState(false);
+
+  if (!canImportLocal || hidden) return null;
+
+  return (
+    <div className="banner">
+      <span aria-hidden>📤</span>
+      <span>
+        داده‌های <b>{faNum(state.tasks.length + state.projects.length + state.inbox.length)}</b> موردی
+        در این مرورگر داری، ولی دیتابیس خالی است. انتقالشان بدهم؟
+        <br />
+        <span className="dim" style={{ fontSize: 12 }}>
+          نسخهٔ مرورگر پاک نمی‌شود — به‌عنوان پشتیبان همان‌جا می‌ماند.
+        </span>
+      </span>
+      <span className="spacer" />
+      <button
+        className="btn btn-primary btn-small"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void importLocal().finally(() => setBusy(false));
+        }}
+      >
+        {busy ? 'در حال انتقال…' : 'انتقال به دیتابیس'}
+      </button>
+      <button className="btn btn-small" onClick={() => setHidden(true)}>
+        بعداً
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const { state, hydrated } = useStore();
   const [tab, setTab] = useState<TabId>('dash');
+  const [pendingSuggestions, setPendingSuggestions] = useState(0);
+
+  // شمارش پیشنهادهای در انتظار — برای نشان قرمز روی تب
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      try {
+        const res = await fetch('/api/suggestions?status=pending', { cache: 'no-store' });
+        const data = await res.json();
+        if (alive && data?.ok) setPendingSuggestions(data.pendingCount ?? 0);
+      } catch {
+        /* اگر دیتابیس نبود، نشان هم لازم نیست */
+      }
+    };
+    void tick();
+    const id = setInterval(tick, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [tab]);
+
+  const badgeFor = (id: TabId): number => {
+    if (id === 'inbox') return state.inbox.length;
+    if (id === 'suggestions') return pendingSuggestions;
+    return 0;
+  };
+
+  const renderTab = (id: TabId) => {
+    switch (id) {
+      case 'suggestions':
+        return <SuggestionsView />;
+      case 'agent':
+        return <AgentPanel />;
+      case 'dash':
+        return <Dashboard onNavigate={setTab} />;
+      case 'inbox':
+        return <InboxView />;
+      case 'tasks':
+        return <TasksBoard />;
+      case 'projects':
+        return <ProjectsView />;
+      case 'charts':
+        return <ChartsView />;
+      case 'trash':
+        return <RecycleBinView />;
+      case 'settings':
+        return <SettingsView />;
+    }
+  };
 
   return (
     <div className="container">
+      <GlobalProgress />
+
+      {/* ─── هدر: برند + تب‌های کم‌کاربردتر ─────────────────────── */}
       <header className="app-header">
         <div className="brand">
-          <div className="logo">ک</div>
-          <div>
-            <h1>کاردان</h1>
-            <p className="tagline">سیستم‌عامل زندگی — نه کار بیشتر؛ تسلط بیشتر</p>
+          {/* آیکون تختهٔ کلاق — همان نماد «کارگردان» */}
+          <div className="logo" aria-hidden>
+            <svg viewBox="0 0 64 64" width="34" height="34" role="img" aria-label="کارگردان">
+              <defs>
+                <linearGradient id="kg-bg-h" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#16a99b" />
+                  <stop offset="1" stopColor="#0a5f57" />
+                </linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="15" fill="url(#kg-bg-h)" />
+              <path d="M10.5 24.5 L19 13 L26.5 13 L18 24.5 Z" fill="#0a5f57" />
+              <path d="M27.5 24.5 L36 13 L43.5 13 L35 24.5 Z" fill="#0a5f57" />
+              <path d="M44.5 24.5 L53 13 L58 13 L54.5 24.5 Z" fill="#0a5f57" />
+              <rect x="8.5" y="12.5" width="47" height="12" rx="2.5" fill="none" stroke="#0a5f57" strokeWidth="1.6" />
+              <rect x="8.5" y="25.4" width="47" height="2.6" fill="#0a5f57" />
+              <rect x="8.5" y="28.8" width="47" height="23.7" rx="3" fill="#ffffff" />
+              <rect x="14" y="34" width="24" height="3.4" rx="1.7" fill="#0d7a6f" />
+              <rect x="14" y="41" width="36" height="3.4" rx="1.7" fill="#0d7a6f" opacity="0.5" />
+              <rect x="14" y="48" width="17" height="3.4" rx="1.7" fill="#0d7a6f" opacity="0.28" />
+            </svg>
           </div>
+          <h1>کارگردان</h1>
         </div>
+
+        <nav className="header-nav" aria-label="بخش‌های فرعی">
+          {SECONDARY_TABS.map((t) => (
+            <button
+              key={t.id}
+              className={`hnav ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+              title={t.label}
+            >
+              <span aria-hidden>{t.icon}</span>
+              <span className="hnav-label">{t.label}</span>
+            </button>
+          ))}
+        </nav>
+
         <div className="header-actions">
+          <SyncNotice />
           <ThemeToggle />
         </div>
       </header>
 
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={`tab ${tab === t.id ? 'active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            <span aria-hidden>{t.icon}</span>
-            <span>{t.label}</span>
-            {t.id === 'inbox' && state.inbox.length > 0 && (
-              <span className="tab-badge">{faNum(state.inbox.length)}</span>
-            )}
-          </button>
-        ))}
+      {/* ─── چهار تب اصلی — چسبان، همیشه دم دست ────────────────── */}
+      <nav className="tabs primary-tabs" aria-label="بخش‌های اصلی">
+        {PRIMARY_TABS.map((t) => {
+          const n = badgeFor(t.id);
+          return (
+            <button
+              key={t.id}
+              className={`tab ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              <span aria-hidden>{t.icon}</span>
+              <span>{t.label}</span>
+              {n > 0 && <span className="tab-badge">{faNum(n)}</span>}
+            </button>
+          );
+        })}
       </nav>
 
       {!hydrated ? (
         <div className="loading">در حال آماده‌سازی…</div>
       ) : (
         <div className="view" key={tab}>
-          {tab === 'dash' && <Dashboard onNavigate={setTab} />}
-          {tab === 'inbox' && <InboxView />}
-          {tab === 'tasks' && <TasksBoard />}
-          {tab === 'projects' && <ProjectsView />}
-          {tab === 'settings' && <SettingsView />}
+          <ImportBanner />
+          {renderTab(tab)}
         </div>
       )}
 
       <footer className="footer">
-        داده‌ها فقط در مرورگر خودت ذخیره می‌شوند — پشتیبان‌گیری از «تنظیمات»
+        داده‌ها در دیتابیس خودت ذخیره می‌شوند · هیچ چیزی پاک نمی‌شود · پشتیبان‌گیری از «تنظیمات»
       </footer>
     </div>
   );

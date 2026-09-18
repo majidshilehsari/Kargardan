@@ -7,6 +7,7 @@ import React, {
   useContext,
   useEffect,
   useReducer,
+  useRef,
   useState,
 } from 'react';
 import type { AppState, ProjectStatus, Task, TaskStatus } from './types';
@@ -277,10 +278,29 @@ export function reducer(state: AppState, action: Action): AppState {
 }
 
 // ─── Context + Provider ───────────────────────────────────────────
+
+/**
+ * منبع داده:
+ *   'db'    → دیتابیس وصل است و منبع اصلی همان است
+ *   'local' → دیتابیس در دسترس نیست؛ همه‌چیز مثل قبل در همین مرورگر
+ */
+export type DataSource = 'db' | 'local';
+
 interface StoreValue {
   state: AppState;
   dispatch: React.Dispatch<Action>;
   hydrated: boolean;
+  source: DataSource;
+  /** دیتابیس از این نسخه جلوتر رفته و باید دوباره خوانده شود */
+  syncError: string;
+  /** در حال نوشتن در دیتابیس */
+  saving: boolean;
+  /** دیتابیس وصل است ولی خالی است و داده‌ی محلی برای انتقال وجود دارد */
+  canImportLocal: boolean;
+  /** انتقال یک‌بارهٔ داده‌ی مرورگر به دیتابیس (localStorage پاک نمی‌شود) */
+  importLocal: () => Promise<void>;
+  /** خواندن دوباره از دیتابیس */
+  refresh: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -309,34 +329,199 @@ export function parseState(raw: string): AppState | null {
   }
 }
 
+/** آیا وضعیت کاملاً خالی است؟ */
+const isEmptyState = (s: AppState): boolean =>
+  s.inbox.length === 0 && s.tasks.length === 0 && s.projects.length === 0;
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hydrated, setHydrated] = useState(false);
+  const [source, setSource] = useState<DataSource>('local');
+  const [syncError, setSyncError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [canImportLocal, setCanImportLocal] = useState(false);
+  const [localBackup, setLocalBackup] = useState<AppState | null>(null);
 
+  /** شمارهٔ نسخه‌ای که آخرین بار از دیتابیس خواندیم — برای نوشتن شرطی */
+  const revisionRef = useRef<number>(-1);
+  /** تا هیدریت نشده، هیچ نوشتنی انجام نمی‌شود */
+  const hydratedRef = useRef(false);
+  /** جلوگیری از نوشتن همان چیزی که تازه از دیتابیس خواندیم */
+  const skipNextSaveRef = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── بارگذاری اولیه: اول دیتابیس، بعد localStorage ──
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = parseState(raw);
-        if (parsed) dispatch({ type: 'STATE_REPLACE', state: parsed });
+    let alive = true;
+
+    const load = async () => {
+      // ۱) خواندن نسخهٔ مرورگر (همیشه — به‌عنوان پشتیبان)
+      let local: AppState | null = null;
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) local = parseState(raw);
+      } catch {
+        /* دسترسی به localStorage ممکن نیست */
       }
-    } catch {
-      // دسترسی به localStorage ممکن نیست (حالت خصوصی و…) — با حالت خالی ادامه بده
-    }
-    setHydrated(true);
+      if (local && alive) setLocalBackup(local);
+
+      // ۲) تلاش برای خواندن از دیتابیس
+      try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        const data = await res.json();
+
+        if (alive && data?.ok && data.state) {
+          const dbState = parseState(JSON.stringify(data.state));
+          if (dbState) {
+            revisionRef.current = typeof data.revision === 'number' ? data.revision : 0;
+            skipNextSaveRef.current = true;
+            dispatch({ type: 'STATE_REPLACE', state: dbState });
+            setSource('db');
+
+            // دیتابیس خالی است ولی مرورگر داده دارد ⇒ پیشنهاد انتقال (نه انتقال خودکار)
+            if (isEmptyState(dbState) && local && !isEmptyState(local)) {
+              setCanImportLocal(true);
+            }
+            setHydrated(true);
+            hydratedRef.current = true;
+            return;
+          }
+        }
+      } catch {
+        /* دیتابیس در دسترس نیست — با حالت محلی ادامه بده */
+      }
+
+      // ۳) حالت محلی (مثل نسخه‌های قبل — برنامه هرگز خالی نمی‌ماند)
+      if (alive) {
+        if (local) dispatch({ type: 'STATE_REPLACE', state: local });
+        setSource('local');
+        setHydrated(true);
+        hydratedRef.current = true;
+      }
+    };
+
+    void load();
+    return () => {
+      alive = false;
+    };
   }, []);
 
+  // ── ذخیره: localStorage (همیشه) + دیتابیس (اگر وصل باشد) ──
   useEffect(() => {
     if (!hydrated) return;
+
+    // ۱) نسخهٔ مرورگر — همیشه، به‌عنوان پشتیبانِ محلی
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // نادیده بگیر
+      /* نادیده بگیر */
     }
-  }, [state, hydrated]);
+
+    // ۲) دیتابیس — با تأخیر کوتاه تا تایپ‌کردن سریع، چند درخواست نسازد
+    if (source !== 'db') return;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void (async () => {
+        setSaving(true);
+        try {
+          const res = await fetch('/api/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state, revision: revisionRef.current }),
+          });
+          const data = await res.json();
+
+          if (data?.ok) {
+            revisionRef.current = typeof data.revision === 'number' ? data.revision : revisionRef.current;
+            setSyncError('');
+          } else if (data?.status === 'stale') {
+            // کسی در این فاصله داده را عوض کرده — اول بخوان، بعد دوباره بنویس
+            setSyncError('دیتابیس هم‌زمان تغییر کرده بود؛ داده‌ها دوباره خوانده شد.');
+            revisionRef.current = typeof data.revision === 'number' ? data.revision : revisionRef.current;
+            const fresh = await fetch('/api/state', { cache: 'no-store' });
+            const freshData = await fresh.json();
+            if (freshData?.ok && freshData.state) {
+              const parsed = parseState(JSON.stringify(freshData.state));
+              if (parsed) {
+                revisionRef.current = freshData.revision ?? revisionRef.current;
+                skipNextSaveRef.current = true;
+                dispatch({ type: 'STATE_REPLACE', state: parsed });
+              }
+            }
+          } else if (data?.error) {
+            setSyncError(String(data.error));
+          }
+        } catch {
+          setSyncError('نوشتن در دیتابیس ممکن نشد؛ داده‌ها در مرورگر سالم هستند.');
+        } finally {
+          setSaving(false);
+        }
+      })();
+    }, 700);
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [state, hydrated, source]);
+
+  // ── خواندن دوباره از دیتابیس ──
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/state', { cache: 'no-store' });
+      const data = await res.json();
+      if (data?.ok && data.state) {
+        const parsed = parseState(JSON.stringify(data.state));
+        if (parsed) {
+          revisionRef.current = typeof data.revision === 'number' ? data.revision : 0;
+          skipNextSaveRef.current = true;
+          dispatch({ type: 'STATE_REPLACE', state: parsed });
+          setSource('db');
+          setSyncError('');
+        }
+      }
+    } catch {
+      setSyncError('خواندن دوباره از دیتابیس ممکن نشد.');
+    }
+  }, []);
+
+  // ── انتقال یک‌بارهٔ داده‌ی مرورگر به دیتابیس ──
+  // ⚠️ localStorage پاک نمی‌شود؛ نسخهٔ مرورگر به‌عنوان پشتیبان می‌ماند.
+  const importLocal = useCallback(async () => {
+    if (!localBackup) return;
+    revisionRef.current = -1; // اجازهٔ نوشتن بدون شرط نسخه
+    try {
+      const res = await fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: localBackup, revision: -1 }),
+      });
+      const data = await res.json();
+      if (data?.ok) {
+        revisionRef.current = data.revision ?? 0;
+        skipNextSaveRef.current = true;
+        dispatch({ type: 'STATE_REPLACE', state: localBackup });
+        setSource('db');
+        setCanImportLocal(false);
+      } else {
+        setSyncError(String(data?.error ?? 'انتقال داده انجام نشد.'));
+      }
+    } catch {
+      setSyncError('انتقال داده انجام نشد؛ نسخهٔ مرورگر دست‌نخورده باقی است.');
+    }
+  }, [localBackup]);
 
   return (
-    <StoreContext.Provider value={{ state, dispatch, hydrated }}>
+    <StoreContext.Provider
+      value={{
+        state, dispatch, hydrated, source, syncError, saving,
+        canImportLocal, importLocal, refresh,
+      }}
+    >
       {children}
     </StoreContext.Provider>
   );
