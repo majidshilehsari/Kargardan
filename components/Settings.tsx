@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { parseState, useStore } from '@/lib/store';
+import DatabaseStatus from './DatabaseStatus';
 import { faNum } from '@/lib/format';
 
 export default function SettingsView() {
@@ -119,10 +120,12 @@ export default function SettingsView() {
         </div>
 
         <p className="quote">
-          داده‌های تو هرگز از مرورگرت خارج نمی‌شود — کارگردان هیچ سروری ندارد؛ همه‌چیز همین‌جا،
-          در دستگاه توست.
+          تا وقتی دیتابیس وصل نشده، داده‌های تو در همین مرورگر می‌ماند و از دستگاهت خارج نمی‌شود.
+          وضعیت اتصال دیتابیس را در کارت پایین ببین.
         </p>
       </section>
+
+      <DatabaseStatus />
 
       <p className="footer">
         هم‌اکنون: {faNum(state.tasks.length)} کار · {faNum(state.projects.length)} پروژه ·{' '}

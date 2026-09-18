@@ -1041,3 +1041,142 @@ details.under-control[open] .chev {
     display: none;
   }
 }
+
+/* ─── بخش «وضعیت دیتابیس» در تنظیمات ───────────────────────────── */
+
+.db-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14.5px;
+  border: 1px solid transparent;
+  margin-bottom: 12px;
+}
+
+.db-status-ok {
+  background: var(--now-soft);
+  border-color: color-mix(in srgb, var(--now) 32%, transparent);
+  color: var(--now);
+}
+
+.db-status-warn {
+  background: var(--waiting-soft);
+  border-color: color-mix(in srgb, var(--waiting) 32%, transparent);
+  color: var(--waiting);
+}
+
+.db-status-bad {
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+  color: var(--danger);
+}
+
+.db-dot {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.db-label {
+  flex: 1;
+}
+
+.db-latency {
+  font-weight: 500;
+  font-size: 12.5px;
+  opacity: 0.85;
+}
+
+.db-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.db-grid .kv {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  background: var(--surface);
+  padding: 9px 13px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.db-grid .kv-k {
+  color: var(--text-dim);
+  min-width: 132px;
+  font-size: 12.5px;
+}
+
+.db-grid .kv-v {
+  flex: 1;
+  min-width: 120px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.db-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: embed;
+  display: inline-block;
+}
+
+.db-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  direction: ltr;
+  display: inline-block;
+  unicode-bidi: embed;
+}
+
+.db-note {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+}
+
+.db-hint {
+  font-size: 13px;
+  background: var(--accent-soft);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 13px;
+  margin: 12px 0 0;
+  line-height: 1.8;
+}
+
+.db-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.db-stamp {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.db-privacy {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 12px 0 0;
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+  line-height: 1.8;
+}

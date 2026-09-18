@@ -1,6 +1,6 @@
 {
   "name": "kargardan",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "کارگردان — سیستم‌عامل زندگی: تخلیه ذهن، تفکیک مهم از فوری، و سقف جبهه‌های فعال",
   "scripts": {
@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@fontsource-variable/vazirmatn": "^5.3.0",
+    "@types/pg": "^8.23.1",
     "next": "^15.3.0",
+    "pg": "^8.23.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
