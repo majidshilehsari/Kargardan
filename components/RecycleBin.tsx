@@ -8,6 +8,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import type { TrashItem } from '@/lib/types';
 import { faNum } from '@/lib/format';
 import { useStore } from '@/lib/store';
+import { withBusy } from '@/lib/busy';
+import { BusyRow, Spinner } from './Busy';
 
 const KIND_META: Record<string, { label: string; icon: string }> = {
   task: { label: 'کار', icon: '📋' },
@@ -28,6 +30,7 @@ export default function RecycleBinView() {
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [dbMissing, setDbMissing] = useState(false);
+  const [working, setWorking] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,20 +65,25 @@ export default function RecycleBinView() {
 
     setBusy(id);
     setMessage('');
+    setWorking(action === 'restore' ? 'در حال برگرداندن' : 'در حال پاک‌کردن');
+
     try {
-      const res = await fetch('/api/trash', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, kind, id }),
+      await withBusy(async () => {
+        const res = await fetch('/api/trash', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, kind, id }),
+        });
+        const data = await res.json();
+        setMessage(data?.message ?? (data?.ok ? 'انجام شد.' : 'انجام نشد.'));
+        await load();
+        if (action === 'restore') await refresh();
       });
-      const data = await res.json();
-      setMessage(data?.message ?? (data?.ok ? 'انجام شد.' : 'انجام نشد.'));
-      await load();
-      if (action === 'restore') await refresh();
     } catch {
       setMessage('ارتباط با سرور برقرار نشد.');
     } finally {
       setBusy('');
+      setWorking('');
     }
   };
 
@@ -110,6 +118,8 @@ export default function RecycleBinView() {
 
         {message && <p className="db-hint" style={{ marginTop: 4 }}>{message}</p>}
 
+        {working && <BusyRow text={`${working}… چند لحظه صبر کن`} />}
+
         {loading && <p className="db-note" style={{ marginTop: 12 }}>⏳ در حال خواندن…</p>}
 
         {!loading && items.length === 0 && (
@@ -123,7 +133,10 @@ export default function RecycleBinView() {
       {items.map((it) => {
         const meta = KIND_META[it.kind] ?? { label: it.kind, icon: '📦' };
         return (
-          <section className="card trash-row" key={`${it.kind}-${it.id}`}>
+          <section
+            className={`card trash-row ${busy === it.id ? 'is-busy' : ''}`}
+            key={`${it.kind}-${it.id}`}
+          >
             <div className="trash-main">
               <div className="p-name">
                 {meta.icon} {it.label}
@@ -136,11 +149,17 @@ export default function RecycleBinView() {
             </div>
             <div className="trash-actions">
               <button
-                className="btn btn-primary btn-small"
+                className="btn btn-primary btn-small btn-busy"
                 disabled={busy === it.id}
                 onClick={() => void act(it.kind, it.id, 'restore')}
               >
-                ♻️ برگرداندن
+                {busy === it.id ? (
+                  <>
+                    <Spinner /> در حال انجام…
+                  </>
+                ) : (
+                  '♻️ برگرداندن'
+                )}
               </button>
               <button
                 className="btn btn-danger btn-small"

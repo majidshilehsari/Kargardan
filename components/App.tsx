@@ -12,6 +12,7 @@ import SuggestionsView from './Suggestions';
 import AgentPanel from './AgentPanel';
 import ChartsView from './Charts';
 import RecycleBinView from './RecycleBin';
+import { GlobalProgress } from './Busy';
 
 export type TabId =
   | 'suggestions'
@@ -24,13 +25,22 @@ export type TabId =
   | 'trash'
   | 'settings';
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
+/**
+ * چهار تب اصلی — در نواری چسبان زیر هدر می‌مانند و همیشه دم دست‌اند.
+ */
+const PRIMARY_TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'suggestions', label: 'پیشنهادات ایجنت', icon: '🤝' },
-  { id: 'agent', label: 'ایجنت همکار', icon: '🔌' },
-  { id: 'dash', label: 'داشبورد', icon: '🏠' },
   { id: 'inbox', label: 'صندوق ذهن', icon: '🧠' },
   { id: 'tasks', label: 'کارها', icon: '📋' },
   { id: 'projects', label: 'پروژه‌ها', icon: '🚀' },
+];
+
+/**
+ * تب‌های کم‌کاربردتر — در هدر، یک پله عقب‌تر از چهار تب اصلی.
+ */
+const SECONDARY_TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'dash', label: 'داشبورد', icon: '🏠' },
+  { id: 'agent', label: 'ایجنت همکار', icon: '🔌' },
   { id: 'charts', label: 'نمودارها', icon: '📊' },
   { id: 'trash', label: 'سطل بازیافت', icon: '🗑' },
   { id: 'settings', label: 'تنظیمات', icon: '⚙️' },
@@ -67,22 +77,24 @@ function ThemeToggle() {
   );
 }
 
-/** نشانگر همگام‌سازی — همیشه می‌دانی داده کجاست */
-function SyncBadge() {
-  const { source, saving, syncError } = useStore();
+/**
+ * هشدار فقط وقتی چیزی درست نیست.
+ * وقتی دیتابیس وصل است و همه‌چیز خوب پیش می‌رود، هیچ چیزی نشان داده نمی‌شود —
+ * وضعیت اتصال در «تنظیمات → وضعیت دیتابیس» است.
+ */
+function SyncNotice() {
+  const { source, syncError } = useStore();
 
-  const label = syncError
-    ? '⚠️ ' + syncError
-    : source === 'db'
-      ? saving
-        ? '☁️ در حال ذخیره…'
-        : '☁️ دیتابیس وصل است'
-      : '💾 فقط در این مرورگر';
+  if (!syncError && source === 'db') return null;
 
-  const tone = syncError ? 'sync-warn' : source === 'db' ? 'sync-ok' : 'sync-local';
+  const isError = Boolean(syncError);
+  const label = isError ? '⚠️ ' + syncError : '💾 فقط در این مرورگر';
 
   return (
-    <span className={`sync-badge ${tone}`} title={syncError || label}>
+    <span
+      className={`sync-badge ${isError ? 'sync-warn' : 'sync-local'}`}
+      title={syncError || 'دیتابیس وصل نیست؛ داده‌ها فعلاً فقط در این مرورگر ذخیره می‌شوند'}
+    >
       {label}
     </span>
   );
@@ -156,8 +168,34 @@ export default function App() {
     return 0;
   };
 
+  const renderTab = (id: TabId) => {
+    switch (id) {
+      case 'suggestions':
+        return <SuggestionsView />;
+      case 'agent':
+        return <AgentPanel />;
+      case 'dash':
+        return <Dashboard onNavigate={setTab} />;
+      case 'inbox':
+        return <InboxView />;
+      case 'tasks':
+        return <TasksBoard />;
+      case 'projects':
+        return <ProjectsView />;
+      case 'charts':
+        return <ChartsView />;
+      case 'trash':
+        return <RecycleBinView />;
+      case 'settings':
+        return <SettingsView />;
+    }
+  };
+
   return (
     <div className="container">
+      <GlobalProgress />
+
+      {/* ─── هدر: برند + تب‌های کم‌کاربردتر ─────────────────────── */}
       <header className="app-header">
         <div className="brand">
           {/* آیکون تختهٔ کلاق — همان نماد «کارگردان» */}
@@ -181,19 +219,32 @@ export default function App() {
               <rect x="14" y="48" width="17" height="3.4" rx="1.7" fill="#0d7a6f" opacity="0.28" />
             </svg>
           </div>
-          <div>
-            <h1>کارگردان</h1>
-            <p className="tagline">سیستم‌عامل زندگی — نه کار بیشتر؛ تسلط بیشتر</p>
-          </div>
+          <h1>کارگردان</h1>
         </div>
+
+        <nav className="header-nav" aria-label="بخش‌های فرعی">
+          {SECONDARY_TABS.map((t) => (
+            <button
+              key={t.id}
+              className={`hnav ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+              title={t.label}
+            >
+              <span aria-hidden>{t.icon}</span>
+              <span className="hnav-label">{t.label}</span>
+            </button>
+          ))}
+        </nav>
+
         <div className="header-actions">
-          <SyncBadge />
+          <SyncNotice />
           <ThemeToggle />
         </div>
       </header>
 
-      <nav className="tabs">
-        {TABS.map((t) => {
+      {/* ─── چهار تب اصلی — چسبان، همیشه دم دست ────────────────── */}
+      <nav className="tabs primary-tabs" aria-label="بخش‌های اصلی">
+        {PRIMARY_TABS.map((t) => {
           const n = badgeFor(t.id);
           return (
             <button
@@ -214,15 +265,7 @@ export default function App() {
       ) : (
         <div className="view" key={tab}>
           <ImportBanner />
-          {tab === 'suggestions' && <SuggestionsView />}
-          {tab === 'agent' && <AgentPanel />}
-          {tab === 'dash' && <Dashboard onNavigate={setTab} />}
-          {tab === 'inbox' && <InboxView />}
-          {tab === 'tasks' && <TasksBoard />}
-          {tab === 'projects' && <ProjectsView />}
-          {tab === 'charts' && <ChartsView />}
-          {tab === 'trash' && <RecycleBinView />}
-          {tab === 'settings' && <SettingsView />}
+          {renderTab(tab)}
         </div>
       )}
 

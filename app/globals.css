@@ -99,8 +99,9 @@ textarea {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
 .brand {
@@ -124,16 +125,47 @@ textarea {
 }
 
 .app-header h1 {
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 800;
   margin: 0;
   line-height: 1.3;
+  letter-spacing: -0.2px;
 }
 
-.tagline {
-  font-size: 12.5px;
+/* ─── ناوبری فرعی داخل هدر (تب‌های کم‌کاربردتر) ───────────────── */
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.hnav {
+  border: 0;
+  background: transparent;
   color: var(--text-dim);
-  margin: 0;
+  padding: 6px 11px;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hnav:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.hnav.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 700;
 }
 
 .header-actions {
@@ -158,6 +190,32 @@ textarea {
   margin-bottom: 22px;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+/* چهار تب اصلی: چسبان، با سایه تا وقتی روی محتوا می‌ایستد خوانا بماند */
+.primary-tabs {
+  top: 8px;
+  background: var(--surface);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+
+.primary-tabs .tab {
+  flex: 1;
+  justify-content: center;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.primary-tabs .tab.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: none;
+}
+
+.primary-tabs .tab.active .tab-badge {
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--accent-strong);
 }
 
 .tabs::-webkit-scrollbar {
@@ -1034,9 +1092,6 @@ details.under-control[open] .chev {
   .grid-stats {
     grid-template-columns: repeat(2, 1fr);
   }
-  .app-header h1 {
-    font-size: 16px;
-  }
   .hide-mobile {
     display: none;
   }
@@ -1619,4 +1674,130 @@ details.under-control[open] .chev {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+/* ─── نشانگر «کاری در جریان است» ───────────────────────────────── */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex: 0 0 auto;
+  vertical-align: -2px;
+}
+
+.busy-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 10px;
+  padding: 9px 13px;
+  margin-top: 12px;
+}
+
+/* کارتی که عملیاتش در جریان است — محو می‌شود و کلیک نمی‌پذیرد */
+.is-busy {
+  opacity: 0.75;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+/* نوار نازکِ بالای صفحه — در همهٔ حالت‌ها دیده می‌شود */
+.global-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 100;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+@keyframes slideProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(340%);
+  }
+}
+
+.global-progress-bar {
+  display: block;
+  height: 100%;
+  width: 30%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: slideProgress 1.05s ease-in-out infinite;
+}
+
+/* دکمه‌ای که عملیاتش در جریان است */
+.btn-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+}
+
+@keyframes pulseSoft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pulse {
+  animation: pulseSoft 1.4s ease-in-out infinite;
+}
+
+/* ─── ریسپانسیو هدر ────────────────────────────────────────────── */
+
+@media (max-width: 820px) {
+  .header-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-top: 2px;
+  }
+  .header-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .hnav-label {
+    display: none;
+  }
+  .hnav {
+    padding: 6px 9px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 620px) {
+  .primary-tabs .tab {
+    font-size: 12.5px;
+    padding: 9px 8px;
+    gap: 4px;
+  }
+  .app-header h1 {
+    font-size: 18px;
+  }
 }

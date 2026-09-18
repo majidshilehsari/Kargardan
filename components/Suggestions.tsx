@@ -8,6 +8,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { SUGGESTION_KIND_META, type Suggestion } from '@/lib/types';
 import { faNum } from '@/lib/format';
 import { useStore } from '@/lib/store';
+import { withBusy } from '@/lib/busy';
+import { BusyRow, Spinner } from './Busy';
 
 type Filter = 'pending' | 'approved' | 'rejected' | 'all';
 
@@ -79,24 +81,35 @@ export default function SuggestionsView() {
     void load();
   }, [load]);
 
+  /** در همین لحظه چه کاری روی چه پیشنهادی در جریان است؟ (برای نمایش وضعیت) */
+  const [working, setWorking] = useState<{ id: string; decision: string } | null>(null);
+
   const decide = async (id: string, decision: 'approved' | 'rejected' | 'revert') => {
     setBusy(id);
     setMessage('');
+
+    const verb =
+      decision === 'approved' ? 'در حال اجرای پیشنهاد' : decision === 'revert' ? 'در حال برگرداندن' : 'در حال رد کردن';
+    setWorking({ id, decision: verb });
+
     try {
-      const res = await fetch(`/api/suggestions/${encodeURIComponent(id)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision }),
+      await withBusy(async () => {
+        const res = await fetch(`/api/suggestions/${encodeURIComponent(id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision }),
+        });
+        const data = await res.json();
+        setMessage(data?.message ?? (data?.ok ? 'انجام شد.' : data?.error ?? 'انجام نشد.'));
+        await load();
+        // اگر داده‌ای عوض شده، نمای اصلی را هم تازه کن
+        if (decision !== 'rejected') await refresh();
       });
-      const data = await res.json();
-      setMessage(data?.message ?? (data?.ok ? 'انجام شد.' : data?.error ?? 'انجام نشد.'));
-      await load();
-      // اگر داده‌ای عوض شده، نمای اصلی را هم تازه کن
-      if (decision !== 'rejected') await refresh();
     } catch {
       setMessage('ارتباط با سرور برقرار نشد.');
     } finally {
       setBusy('');
+      setWorking(null);
     }
   };
 
@@ -155,6 +168,12 @@ export default function SuggestionsView() {
 
         {message && <p className="db-hint" style={{ marginTop: 12 }}>{message}</p>}
 
+        {working && (
+          <BusyRow
+            text={`${working.decision}… اگر طول کشید، نگران نباش — درخواست در حال پردازش است.`}
+          />
+        )}
+
         {loading && <p className="db-note" style={{ marginTop: 12 }}>⏳ در حال خواندن…</p>}
 
         {!loading && shown.length === 0 && (
@@ -170,8 +189,9 @@ export default function SuggestionsView() {
       {shown.map((s) => {
         const meta = SUGGESTION_KIND_META[s.kind] ?? SUGGESTION_KIND_META.note;
         const reverted = revertedIds.includes(s.id);
+        const isWorking = busy === s.id;
         return (
-          <section className="card sug-card" key={s.id}>
+          <section className={`card sug-card ${isWorking ? 'is-busy' : ''}`} key={s.id}>
             <div className="sug-head">
               <span className={`chip chip-${s.status === 'pending' ? 'waiting' : s.status === 'approved' ? 'now' : 'parked'}`}>
                 {s.status === 'pending' ? '⏳ در انتظار' : s.status === 'approved' ? '✅ تأییدشده' : '❌ ردشده'}
@@ -189,21 +209,29 @@ export default function SuggestionsView() {
               <span className="dim">اثر اجرا:</span> {payloadSummary(s)}
             </div>
 
+            {isWorking && <BusyRow text={`${working?.decision ?? 'در حال انجام'}… چند لحظه صبر کن`} />}
+
             <div className="sug-foot">
               <span className="dim" style={{ fontSize: 12 }}>از: {s.agentName}</span>
               <span className="spacer" />
               {s.status === 'pending' && (
                 <>
                   <button
-                    className="btn btn-primary btn-small"
-                    disabled={busy === s.id}
+                    className="btn btn-primary btn-small btn-busy"
+                    disabled={isWorking}
                     onClick={() => void decide(s.id, 'approved')}
                   >
-                    ✅ تأیید و اجرا
+                    {isWorking ? (
+                      <>
+                        <Spinner /> در حال اجرا…
+                      </>
+                    ) : (
+                      '✅ تأیید و اجرا'
+                    )}
                   </button>
                   <button
-                    className="btn btn-small"
-                    disabled={busy === s.id}
+                    className="btn btn-small btn-busy"
+                    disabled={isWorking}
                     onClick={() => void decide(s.id, 'rejected')}
                   >
                     ❌ رد کردن
@@ -212,11 +240,17 @@ export default function SuggestionsView() {
               )}
               {s.status === 'approved' && !reverted && (
                 <button
-                  className="btn btn-small"
-                  disabled={busy === s.id}
+                  className="btn btn-small btn-busy"
+                  disabled={isWorking}
                   onClick={() => void decide(s.id, 'revert')}
                 >
-                  ⏪ برگرداندن
+                  {isWorking ? (
+                    <>
+                      <Spinner /> در حال برگرداندن…
+                    </>
+                  ) : (
+                    '⏪ برگرداندن'
+                  )}
                 </button>
               )}
               {s.status === 'approved' && reverted && (

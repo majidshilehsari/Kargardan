@@ -11,6 +11,8 @@
 //   • کلید را می‌توانی عوض کنی
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { withBusy } from '@/lib/busy';
+import { BusyRow, Spinner } from './Busy';
 
 interface AgentKeyState {
   enabled: boolean;
@@ -55,6 +57,7 @@ export default function AgentPanel() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [reveal, setReveal] = useState(false);
+  const [working, setWorking] = useState('');
 
   /** خواندن وضعیت؛ اگر کلید نبود، خودش می‌سازد */
   const load = useCallback(async (createIfMissing: boolean) => {
@@ -111,20 +114,31 @@ export default function AgentPanel() {
 
     setBusy(true);
     setMessage('');
+    setWorking(
+      action === 'disable'
+        ? 'در حال قطع دسترسی'
+        : action === 'enable'
+          ? 'در حال بازکردن دسترسی'
+          : 'در حال ساخت کلید جدید'
+    );
+
     try {
-      const res = await fetch('/api/agent/key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+      await withBusy(async () => {
+        const res = await fetch('/api/agent/key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
+        const data = await res.json();
+        setMessage(String(data?.message ?? (data?.ok ? 'انجام شد.' : data?.error ?? 'انجام نشد.')));
+        await load(false);
+        if (action === 'regenerate') setReveal(true);
       });
-      const data = await res.json();
-      setMessage(String(data?.message ?? (data?.ok ? 'انجام شد.' : data?.error ?? 'انجام نشد.')));
-      await load(false);
-      if (action === 'regenerate') setReveal(true);
     } catch {
       setMessage('ارتباط با سرور برقرار نشد.');
     } finally {
       setBusy(false);
+      setWorking('');
     }
   };
 
@@ -209,15 +223,25 @@ export default function AgentPanel() {
             </div>
           </div>
           <button
-            className={`btn ${isOpen ? 'btn-danger-solid' : 'btn-primary'}`}
+            className={`btn btn-busy ${isOpen ? 'btn-danger-solid' : 'btn-primary'}`}
             disabled={busy}
             onClick={() => void act(isOpen ? 'disable' : 'enable')}
           >
-            {busy ? '…' : isOpen ? '⏸ قطع دسترسی' : '▶️ فعال‌سازی'}
+            {busy ? (
+              <>
+                <Spinner /> در حال انجام…
+              </>
+            ) : isOpen ? (
+              '⏸ قطع دسترسی'
+            ) : (
+              '▶️ فعال‌سازی'
+            )}
           </button>
         </div>
 
         {message && <p className="db-hint" style={{ marginTop: 12 }}>{message}</p>}
+
+        {working && <BusyRow text={`${working}… چند لحظه صبر کن`} />}
 
         <p className="db-note" style={{ marginTop: 12 }}>
           کنترل قطع‌وصل <b>فوری</b> است — در دیتابیس ذخیره می‌شود و از همان لحظه روی همهٔ
@@ -252,11 +276,17 @@ export default function AgentPanel() {
               </button>
               <CopyButton text={keyForCopy} label="کپی کلید" />
               <button
-                className="btn btn-small"
+                className="btn btn-small btn-busy"
                 disabled={busy}
                 onClick={() => void act('regenerate')}
               >
-                🔄 ساخت کلید جدید
+                {busy ? (
+                  <>
+                    <Spinner /> در حال ساخت…
+                  </>
+                ) : (
+                  '🔄 ساخت کلید جدید'
+                )}
               </button>
               {state.updatedAt && (
                 <span className="db-stamp">ساخته‌شده: {timeFa(state.updatedAt)}</span>

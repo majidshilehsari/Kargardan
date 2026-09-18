@@ -7,6 +7,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { DbHealth } from '@/lib/db-types';
 import { faNum } from '@/lib/format';
+import { withBusy } from '@/lib/busy';
+import { BusyRow, Spinner } from './Busy';
 
 type LoadState =
   | { kind: 'loading' }
@@ -77,20 +79,22 @@ function SchemaManager({ onChanged }: { onChanged: () => void }) {
   const build = async () => {
     setState({ kind: 'busy' });
     try {
-      const res = await fetch('/api/migrate', { method: 'POST' });
-      const data = await res.json();
-      if (data?.ok) {
-        setState({
-          kind: 'done',
-          message: data.message ?? 'انجام شد.',
-          created: data.createdTables?.length ?? 0,
-        });
-        setTables(data.tables ?? []);
-        setReady(true);
-        onChanged();
-      } else {
-        setState({ kind: 'done', message: data?.message ?? data?.error ?? 'انجام نشد.', created: 0 });
-      }
+      await withBusy(async () => {
+        const res = await fetch('/api/migrate', { method: 'POST' });
+        const data = await res.json();
+        if (data?.ok) {
+          setState({
+            kind: 'done',
+            message: data.message ?? 'انجام شد.',
+            created: data.createdTables?.length ?? 0,
+          });
+          setTables(data.tables ?? []);
+          setReady(true);
+          onChanged();
+        } else {
+          setState({ kind: 'done', message: data?.message ?? data?.error ?? 'انجام نشد.', created: 0 });
+        }
+      });
     } catch {
       setState({ kind: 'done', message: 'ارتباط با سرور برقرار نشد.', created: 0 });
     }
@@ -125,9 +129,22 @@ function SchemaManager({ onChanged }: { onChanged: () => void }) {
             <br />
             • اجرای چندباره‌اش هیچ اثر اضافه‌ای ندارد
           </p>
-          <button className="btn btn-primary btn-small" disabled={state.kind === 'busy'} onClick={() => void build()}>
-            {state.kind === 'busy' ? 'در حال ساخت…' : '🏗 ساخت جدول‌ها'}
+          <button
+            className="btn btn-primary btn-small btn-busy"
+            disabled={state.kind === 'busy'}
+            onClick={() => void build()}
+          >
+            {state.kind === 'busy' ? (
+              <>
+                <Spinner /> در حال ساخت جدول‌ها…
+              </>
+            ) : (
+              '🏗 ساخت جدول‌ها'
+            )}
           </button>
+          {state.kind === 'busy' && (
+            <BusyRow text="در حال ساخت جدول‌ها در دیتابیس… به هیچ داده‌ای دست زده نمی‌شود." />
+          )}
         </>
       )}
 
