@@ -1801,3 +1801,40 @@ details.under-control[open] .chev {
     font-size: 18px;
   }
 }
+
+/* ─── بخش اتصال ChatGPT ─────────────────────────────────────────── */
+
+.sub-h {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin: 18px 0 8px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sub-h:first-of-type {
+  margin-top: 14px;
+}
+
+.steps {
+  margin: 0;
+  padding-inline-start: 22px;
+  font-size: 13.5px;
+  line-height: 2;
+}
+
+.steps li {
+  margin-bottom: 7px;
+}
+
+.steps .steps-note {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  background: var(--waiting-soft);
+  border-radius: 8px;
+  padding: 7px 11px;
+  margin-top: 6px;
+  line-height: 1.85;
+}

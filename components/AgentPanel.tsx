@@ -13,6 +13,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { withBusy } from '@/lib/busy';
 import { BusyRow, Spinner } from './Busy';
+import ChatGptBridge from './ChatGptBridge';
 
 interface AgentKeyState {
   enabled: boolean;
@@ -305,6 +306,9 @@ export default function AgentPanel() {
         )}
       </section>
 
+      {/* ─── اتصال ChatGPT ──────────────────────────────────────── */}
+      {!state.envOverride && <ChatGptBridge apiKey={state.key} />}
+
       {/* ─── APIها ─────────────────────────────────────────────── */}
       <section className="card">
         <h2 className="card-title">🔌 APIهایی که در اختیار ایجنت همکار است</h2>
@@ -342,9 +346,15 @@ export default function AgentPanel() {
         ))}
 
         <p className="db-note" style={{ marginTop: 12 }}>
-          همهٔ این مسیرها به هدر <code className="db-code">Authorization: Bearer &lt;کلید&gt;</code>{' '}
-          نیاز دارند. اگر دسترسی قطع باشد، همه با کد <code className="db-code">۴۰۳</code> رد
-          می‌شوند.
+          🔑 کلید را به سه شکل می‌توانی بفرستی (هر کدام راحت‌تر است):
+          <br />• هدر <code className="db-code">Authorization: Bearer &lt;کلید&gt;</code> — برای
+          curl و اسکریپت‌ها
+          <br />• هدر <code className="db-code">x-agent-key: &lt;کلید&gt;</code>
+          <br />• پارامتر آدرس <code className="db-code">?k=&lt;کلید&gt;</code> — برای
+          <b> ChatGPT</b> (که نمی‌تواند هدر سفارشی بفرستد)
+          <br />
+          <br />🔴 اگر دسترسی قطع باشد، همهٔ این مسیرها با کد{' '}
+          <code className="db-code">۴۰۳</code> رد می‌شوند.
         </p>
       </section>
 

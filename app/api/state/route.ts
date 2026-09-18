@@ -6,7 +6,15 @@
 //   نوشتن **رد** می‌شود و کلاینت موظف است اول دوباره بخواند.
 import { getAppPool } from '@/lib/db';
 import { readState, writeState } from '@/lib/repo';
-import { ensureSchema, fail, notConfigured, okJson, readJson } from '@/lib/api-utils';
+import {
+  crossSiteRejected,
+  ensureSchema,
+  fail,
+  isCrossSiteRequest,
+  notConfigured,
+  okJson,
+  readJson,
+} from '@/lib/api-utils';
 import type { AppState } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -31,6 +39,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // 🛡 جلوی درخواست‌های میان‌سایتی را بگیر (حتی اگر دیتابیس وصل نباشد)
+  if (isCrossSiteRequest(req)) return crossSiteRejected();
+
   const pool = getAppPool();
   if (!pool) return notConfigured();
 

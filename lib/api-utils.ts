@@ -89,3 +89,89 @@ export function notConfigured() {
     200
   );
 }
+
+// ─── تشخیص «نشانی عمومی» برنامه ────────────────────────────────────
+//
+// 📌 چرا لازم است؟ فایل OpenAPI باید نشانی‌ای بدهد که ChatGPT واقعاً بتواند
+//    صدا بزند. اگر اشتباهاً «http://0.0.0.0:3000» یا «localhost» بدهد،
+//    ChatGPT هیچ‌وقت نمی‌تواند به کارگردان وصل شود.
+//
+// ترتیب اولویت:
+//   ۱. VERCEL_PROJECT_PRODUCTION_URL  → دامنهٔ پایدار پروژه در Vercel (بهترین)
+//   ۲. VERCEL_URL                     → دامنهٔ همین دیپلوی
+//   ۳. x-forwarded-host / host        → اگر عمومی باشد
+//   ۴. req.url                        → آخرین گزینه
+
+/** اولین مقدار یک هدر (هدرهای زنجیره‌ای با کاما جدا می‌شوند) */
+function firstValue(v: string | null): string {
+  return (v ?? '').split(',')[0].trim();
+}
+
+/** آیا این میزبان، داخلی/غیرقابل‌دسترس از اینترنت است؟ */
+export function isInternalHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return (
+    h.startsWith('localhost') ||
+    h.startsWith('127.') ||
+    h.startsWith('0.0.0.0') ||
+    h.startsWith('[::1]') ||
+    h.startsWith('10.') ||
+    h.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h)
+  );
+}
+
+/** نشانی عمومی و قابل‌دسترس برنامه را برمی‌گرداند */
+export function resolvePublicOrigin(req: Request): string {
+  // ۰) راه فرار دستی — اگر کاربر نشانی عمومی را صریح بگذارد، همان مقدم است
+  const manual = (process.env.KARGARDAN_PUBLIC_URL ?? '').trim();
+  if (manual) return manual.replace(/\/+$/, '');
+
+  const fwdHost = firstValue(req.headers.get('x-forwarded-host'));
+  const hostHeader = firstValue(req.headers.get('host'));
+  const candidate = fwdHost || hostHeader;
+
+  // ۱) دامنهٔ پایدار Vercel — همیشه بر بقیه مقدم است، چون ثابت می‌ماند
+  const prodUrl = (process.env.VERCEL_PROJECT_PRODUCTION_URL ?? '').trim();
+  if (prodUrl && (!candidate || isInternalHost(candidate))) {
+    return `https://${prodUrl.replace(/^https?:\/\//, '')}`;
+  }
+
+  // ۲) دامنهٔ همین دیپلوی
+  const deployUrl = (process.env.VERCEL_URL ?? '').trim();
+
+  if (candidate && !isInternalHost(candidate)) {
+    const proto = firstValue(req.headers.get('x-forwarded-proto')) || 'https';
+    return `${proto}://${candidate}`;
+  }
+
+  if (deployUrl) {
+    return `https://${deployUrl.replace(/^https?:\/\//, '')}`;
+  }
+
+  // ۳) آخرین گزینه — همان چیزی که در req.url هست
+  return new URL(req.url).origin;
+}
+
+// ─── 🛡 محافظت پایه برای مسیرهای خودِ برنامه ────────────────────────
+//
+// ⚠️ این «احراز هویت» نیست — فقط جلوی یک حملهٔ مشخص را می‌گیرد:
+//    یک وب‌سایت مخرب که مرورگر تو را وادار کند به کارگردان درخواست بفرستد
+//    (حملهٔ CSRF). مرورگر همیشه هدر `Sec-Fetch-Site` را خودش می‌گذارد و
+//    هیچ وب‌سایتی نمی‌تواند آن را جعل کند.
+//
+// ❗️ این محافظ جلوی کسی که مستقیم با curl به API وصل شود را **نمی‌گیرد**.
+//    برای آن، احراز هویت واقعی لازم است — در گزارش به کارفرما توضیح داده شده.
+export function isCrossSiteRequest(req: Request): boolean {
+  return (req.headers.get('sec-fetch-site') ?? '').toLowerCase() === 'cross-site';
+}
+
+/** پاسخ استاندارد رد درخواست میان‌سایتی */
+export function crossSiteRejected() {
+  return fail(
+    403,
+    'درخواست از یک سایت دیگر رد شد.',
+    'این محافظ جلوی حملهٔ CSRF را می‌گیرد. اگر با ابزار خودت درخواست می‌فرستی، ' +
+      'از مسیرهای /api/agent/* با کلید استفاده کن.'
+  );
+}

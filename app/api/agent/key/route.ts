@@ -11,7 +11,12 @@ import {
   regenerateAgentKey,
   setAgentEnabled,
 } from '@/lib/agent-auth';
-import { ensureSchema, readJson } from '@/lib/api-utils';
+import {
+  crossSiteRejected,
+  ensureSchema,
+  isCrossSiteRequest,
+  readJson,
+} from '@/lib/api-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,6 +70,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (isCrossSiteRequest(req)) return crossSiteRejected();
+
   const pool = await withPool();
   if (!pool) {
     return NextResponse.json(

@@ -3,12 +3,13 @@
 import { NextResponse } from 'next/server';
 import { getAppPool } from '@/lib/db';
 import { getAgentAccess } from '@/lib/agent-auth';
+import { resolvePublicOrigin } from '@/lib/api-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  const origin = new URL(req.url).origin;
+  const origin = resolvePublicOrigin(req);
   const pool = getAppPool();
 
   let enabled = false;

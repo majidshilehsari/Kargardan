@@ -166,10 +166,28 @@ export async function writeState(
     );
     const currentRev = current.rows[0] ? Number(current.rows[0].value) || 0 : 0;
 
-    // «نوشتنِ شرطی»: اگر دیتابیس از آنچه کلاینت دیده جلوتر رفته، دست نزن
+    // 🛡 «نوشتنِ شرطی»: اگر دیتابیس از آنچه کلاینت دیده جلوتر رفته، دست نزن
     if (expectedRevision >= 0 && currentRev !== expectedRevision) {
       await client.query('rollback');
       return { ok: false, stale: true, revision: currentRev };
+    }
+
+    // 🛡 «نوشتنِ بدون شرط» (revision منفی) فقط برای یک کار وجود دارد:
+    //    انتقال اولیهٔ داده از مرورگر به دیتابیس خالی.
+    //    اگر دیتابیس داده داشته باشد، این مسیر **بسته** است —
+    //    تا هیچ‌کس نتواند با revision دلخواه، همه‌چیز را بازنویسی کند.
+    if (expectedRevision < 0) {
+      const nonEmpty = await client.query<{ n: string }>(
+        `select (
+           (select count(*) from ${TABLES.tasks}    where deleted_at is null) +
+           (select count(*) from ${TABLES.projects} where deleted_at is null) +
+           (select count(*) from ${TABLES.inbox}    where deleted_at is null)
+         )::text as n`
+      );
+      if (Number(nonEmpty.rows[0]?.n ?? '0') > 0) {
+        await client.query('rollback');
+        return { ok: false, stale: true, revision: currentRev };
+      }
     }
 
     const now = Date.now();

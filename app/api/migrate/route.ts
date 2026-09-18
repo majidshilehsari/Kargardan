@@ -8,6 +8,7 @@
 //
 // فقط با کلیک صریح خودِ کاربر در رابط کاربری (تنظیمات → وضعیت دیتابیس) صدا زده می‌شود.
 import { NextResponse } from 'next/server';
+import { crossSiteRejected, isCrossSiteRequest } from '@/lib/api-utils';
 import { getAppPool } from '@/lib/db';
 import { migrate, listTables, schemaReady } from '@/lib/schema';
 
@@ -43,7 +44,9 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  if (isCrossSiteRequest(req)) return crossSiteRejected();
+
   const pool = getAppPool();
   if (!pool) {
     return NextResponse.json(

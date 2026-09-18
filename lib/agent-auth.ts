@@ -107,7 +107,7 @@ export async function setAgentEnabled(pool: Pool, enabled: boolean): Promise<voi
 // ─── بررسی درخواست ────────────────────────────────────────────────
 
 export type AuthResult =
-  | { ok: true }
+  | { ok: true; via: 'header' | 'x-agent-key' | 'query' }
   | { ok: false; status: 503 | 403 | 401; error: string; hint: string };
 
 /** مقایسهٔ امن کلیدها — مقاوم در برابر حملات زمان‌سنجی */
@@ -168,10 +168,25 @@ export async function checkAgentAuth(req: Request, pool: Pool | null): Promise<A
     };
   }
 
+  // 🔑 کلید را از سه جا می‌پذیریم — چون همهٔ کلاینت‌ها نمی‌توانند هدر سفارشی بفرستند:
+  //   ۱. Authorization: Bearer <کلید>   → برای curl و اسکریپت‌ها
+  //   ۲. x-agent-key: <کلید>            → هدر جایگزین
+  //   ۳. ?k=<کلید> در آدرس              → 🔴 برای ChatGPT
+  //      ChatGPT Actions نمی‌تواند هدر سفارشی بفرستد، ولی apiKey با in:query
+  //      را پشتیبانی می‌کند. این همان مسیری است که ایجنت همکار ChatGPT لازم دارد.
   const header = req.headers.get('authorization') ?? '';
   const bearer = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
   const direct = (req.headers.get('x-agent-key') ?? '').trim();
-  const provided = bearer || direct;
+
+  let fromQuery = '';
+  try {
+    const url = new URL(req.url);
+    fromQuery = (url.searchParams.get('k') ?? url.searchParams.get('key') ?? '').trim();
+  } catch {
+    /* آدرس نامعتبر — نادیده بگیر */
+  }
+
+  const provided = bearer || direct || fromQuery;
 
   if (!provided || !safeEqual(provided, access.key)) {
     return {
@@ -179,9 +194,12 @@ export async function checkAgentAuth(req: Request, pool: Pool | null): Promise<A
       status: 401,
       error: 'کلید دسترسی ایجنت نادرست یا غایب است.',
       hint:
-        'هدر Authorization: Bearer <کلید> را بفرست. کلید را از تب «🔌 ایجنت همکار» بگیر.',
+        'کلید را به یکی از این سه شکل بفرست: ' +
+        'هدر Authorization: Bearer <کلید> · هدر x-agent-key: <کلید> · ' +
+        'یا پارامتر آدرس ?k=<کلید> (مناسب برای ChatGPT). ' +
+        'کلید را از تب «🔌 ایجنت همکار» بگیر.',
     };
   }
 
-  return { ok: true };
+  return { ok: true, via: bearer ? 'header' : direct ? 'x-agent-key' : 'query' };
 }

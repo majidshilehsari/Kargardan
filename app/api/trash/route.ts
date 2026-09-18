@@ -3,7 +3,14 @@
 // «پاک‌کردن قطعی» فقط با درخواست صریح کاربر (action: 'purge') انجام می‌شود.
 import { getAppPool } from '@/lib/db';
 import { listTrash, purgeTrash, restoreTrash } from '@/lib/repo';
-import { fail, notConfigured, okJson, readJson } from '@/lib/api-utils';
+import {
+  crossSiteRejected,
+  fail,
+  isCrossSiteRequest,
+  notConfigured,
+  okJson,
+  readJson,
+} from '@/lib/api-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +29,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (isCrossSiteRequest(req)) return crossSiteRejected();
+
   const pool = getAppPool();
   if (!pool) return notConfigured();
 
