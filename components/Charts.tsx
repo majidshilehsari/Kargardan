@@ -4,6 +4,7 @@
 // نمودارها با SVG خالص کشیده می‌شوند؛ هیچ کتابخانهٔ اضافه‌ای نصب نشده.
 
 import React, { useMemo } from 'react';
+import MindMap from './MindMap';
 import { useStore } from '@/lib/store';
 import { faNum } from '@/lib/format';
 import { PROJECT_STATUS_META, TASK_STATUSES, TASK_STATUS_META, type TaskStatus } from '@/lib/types';
@@ -236,6 +237,9 @@ export default function ChartsView() {
 
   return (
     <>
+      {/* 🧠 مهم‌ترین نمودار: تو وسط، همه چیز دور تا دور */}
+      <MindMap tasks={tasks} projects={projects} inbox={inbox} />
+
       <div className="grid-stats">
         {stats.map((s) => (
           <div className="stat-card" key={s.label}>

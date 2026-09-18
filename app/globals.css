@@ -498,6 +498,223 @@ textarea.input {
   color: var(--text-dim);
 }
 
+
+/* ─── 🧠 نقشهٔ ذهنی (تب نمودارها) ─────────────────────────────── */
+
+.mm-viewport {
+  overflow: auto;
+  max-height: 78vh;
+}
+
+.mindmap {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  margin: 4px auto 0;
+  overflow: visible;
+}
+
+.mm-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+
+.mm-zoom-val {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.mm-ring {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 2 7;
+}
+
+.mm-link {
+  stroke-width: 1.6;
+  stroke-opacity: 0.42;
+}
+
+.mm-link-faint {
+  stroke-opacity: 0.28;
+  stroke-dasharray: 4 6;
+}
+
+.mm-link-done {
+  stroke-opacity: 0.18;
+  stroke-dasharray: 3 7;
+}
+
+.mm-node {
+  animation: mm-in 0.45s ease-out both;
+}
+
+.mm-node.mm-click {
+  cursor: pointer;
+}
+
+.mm-node.mm-click:hover .mm-box {
+  filter: brightness(1.06);
+}
+
+.mm-node:focus-visible {
+  outline: none;
+}
+
+.mm-node:focus-visible .mm-box {
+  stroke-width: 3;
+}
+
+.mm-box {
+  stroke-width: 1.6;
+  transition: filter 0.15s, stroke-width 0.15s;
+}
+
+.mm-t-now { fill: var(--now-soft); stroke: var(--now); }
+.mm-t-later { fill: var(--later-soft); stroke: var(--later); }
+.mm-t-waiting { fill: var(--waiting-soft); stroke: var(--waiting); }
+.mm-t-parked { fill: var(--parked-soft); stroke: var(--parked); }
+
+.mm-p-active { fill: var(--accent-soft); stroke: var(--accent); }
+.mm-p-queued { fill: var(--later-soft); stroke: var(--later); }
+.mm-p-parked { fill: var(--parked-soft); stroke: var(--parked); }
+.mm-p-done { fill: var(--surface-2); stroke: var(--text-dim); }
+
+.mm-i {
+  fill: var(--surface);
+  stroke: var(--text-dim);
+  stroke-dasharray: 5 5;
+}
+
+.mm-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  fill: var(--text);
+}
+
+.mm-sub {
+  font-size: 9.5px;
+  fill: var(--text-dim);
+}
+
+.mm-strike {
+  stroke: var(--text-dim);
+  stroke-width: 2.4;
+  stroke-dasharray: 320;
+  animation: mm-strike 0.7s ease-out 0.2s both;
+}
+
+.mm-center {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.mm-center-main {
+  font-size: 30px;
+  font-weight: 800;
+  fill: var(--text);
+}
+
+.mm-center-sub {
+  font-size: 11.5px;
+  fill: var(--text-dim);
+}
+
+.mm-center-g {
+  animation: mm-in 0.6s ease-out both;
+}
+
+.mm-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.mm-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mm-toggles input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.mm-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  justify-content: center;
+}
+
+.mm-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mm-legend-strike {
+  width: 20px;
+  height: 0;
+  border-top: 2.4px solid var(--text-dim);
+  transform: rotate(-16deg);
+}
+
+.mm-legend-dashed {
+  width: 16px;
+  height: 12px;
+  border: 1.5px dashed var(--text-dim);
+  border-radius: 4px;
+}
+
+.mm-note {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+@keyframes mm-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mm-strike {
+  from { stroke-dashoffset: 320; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-node,
+  .mm-center-g,
+  .mm-strike {
+    animation: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .mm-text { font-size: 11px; }
+  .mm-center-main { font-size: 24px; }
+}
+
+/* ─── پایان نقشهٔ ذهنی ─────────────────────────────────────────── */
+
 /* ─── آمار داشبورد ────────────────────────────────────────────── */
 
 .grid-stats {
