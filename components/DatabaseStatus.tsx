@@ -45,6 +45,99 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+/**
+ * ساخت جدول‌های کارگردان.
+ * 🛡 فقط `CREATE TABLE IF NOT EXISTS` می‌زند — هیچ داده‌ای را پاک یا عوض نمی‌کند.
+ * فقط با کلیک خودت اجرا می‌شود.
+ */
+function SchemaManager({ onChanged }: { onChanged: () => void }) {
+  const [state, setState] = useState<
+    { kind: 'idle' } | { kind: 'busy' } | { kind: 'done'; message: string; created: number }
+  >({ kind: 'idle' });
+  const [tables, setTables] = useState<string[] | null>(null);
+  const [ready, setReady] = useState<boolean | null>(null);
+
+  const check = useCallback(async () => {
+    try {
+      const res = await fetch('/api/migrate', { cache: 'no-store' });
+      const data = await res.json();
+      if (data?.ok) {
+        setTables(data.tables ?? []);
+        setReady(Boolean(data.ready));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void check();
+  }, [check]);
+
+  const build = async () => {
+    setState({ kind: 'busy' });
+    try {
+      const res = await fetch('/api/migrate', { method: 'POST' });
+      const data = await res.json();
+      if (data?.ok) {
+        setState({
+          kind: 'done',
+          message: data.message ?? 'انجام شد.',
+          created: data.createdTables?.length ?? 0,
+        });
+        setTables(data.tables ?? []);
+        setReady(true);
+        onChanged();
+      } else {
+        setState({ kind: 'done', message: data?.message ?? data?.error ?? 'انجام نشد.', created: 0 });
+      }
+    } catch {
+      setState({ kind: 'done', message: 'ارتباط با سرور برقرار نشد.', created: 0 });
+    }
+  };
+
+  if (ready === null) return null;
+
+  return (
+    <div className="migrate-box">
+      {ready ? (
+        <>
+          <h4>✅ جدول‌های کارگردان ساخته شده‌اند</h4>
+          <p>داده‌های تو حالا در دیتابیس خودت ذخیره می‌شوند.</p>
+          {tables && tables.length > 0 && (
+            <div className="table-list">
+              {tables.map((t) => (
+                <span className="table-chip" key={t}>{t}</span>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <h4>🏗 جدول‌های کارگردان ساخته نشده‌اند</h4>
+          <p>
+            دیتابیس وصل است ولی هنوز جدول‌های خودِ کارگردان را ندارد. با یک کلیک ساخته
+            می‌شوند:
+            <br />
+            • فقط جدول‌های نبوده ساخته می‌شوند (<code className="db-code">IF NOT EXISTS</code>)
+            <br />
+            • هیچ داده‌ای پاک، عوض یا بازنویسی نمی‌شود
+            <br />
+            • اجرای چندباره‌اش هیچ اثر اضافه‌ای ندارد
+          </p>
+          <button className="btn btn-primary btn-small" disabled={state.kind === 'busy'} onClick={() => void build()}>
+            {state.kind === 'busy' ? 'در حال ساخت…' : '🏗 ساخت جدول‌ها'}
+          </button>
+        </>
+      )}
+
+      {state.kind === 'done' && (
+        <p className="db-hint" style={{ marginTop: 10 }}>{state.message}</p>
+      )}
+    </div>
+  );
+}
+
 export default function DatabaseStatus() {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
@@ -93,7 +186,7 @@ export default function DatabaseStatus() {
         </>
       )}
 
-      {state.kind === 'ready' && <HealthBody health={state.health} />}
+      {state.kind === 'ready' && <HealthBody health={state.health} onChanged={() => void load()} />}
 
       <div className="db-actions">
         <button className="btn btn-small" onClick={() => void load()} disabled={state.kind === 'loading'}>
@@ -112,7 +205,7 @@ export default function DatabaseStatus() {
   );
 }
 
-export function HealthBody({ health }: { health: DbHealth }) {
+export function HealthBody({ health, onChanged }: { health: DbHealth; onChanged?: () => void }) {
   const meta = STATUS_META[health.status];
 
   return (
@@ -185,13 +278,7 @@ export function HealthBody({ health }: { health: DbHealth }) {
             <Row label="تعداد جدول‌ها" value={faNum(health.tableCount)} />
           </div>
 
-          {!health.appTablesPresent && (
-            <p className="db-hint">
-              ✅ اتصال برقرار است. هنوز جدول‌های خودِ کارگردان ساخته نشده — چون ساخت جدول یک «نوشتن» در
-              دیتابیس است و طبق قرارمان جدول‌ها را فقط با تأیید جداگانهٔ تو می‌سازیم. تا آن زمان داده‌هایت
-              در همین مرورگر ذخیره می‌شود و هیچ‌چیز از بین نمی‌رود.
-            </p>
-          )}
+          <SchemaManager onChanged={() => onChanged?.()} />
         </>
       )}
     </>

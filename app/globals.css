@@ -1180,3 +1180,372 @@ details.under-control[open] .chev {
   padding-top: 10px;
   line-height: 1.8;
 }
+
+/* ─── نشانگر همگام‌سازی ────────────────────────────────────────── */
+
+.sync-badge {
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sync-ok {
+  background: var(--now-soft);
+  color: var(--now);
+  border-color: color-mix(in srgb, var(--now) 28%, transparent);
+}
+
+.sync-local {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.sync-warn {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+/* ─── پیشنهادات ایجنت ──────────────────────────────────────────── */
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.pill {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  margin-inline-start: 5px;
+  font-weight: 700;
+}
+
+.btn:not(.btn-primary) .pill {
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+
+.sug-card {
+  border-inline-start: 3px solid var(--accent);
+}
+
+.sug-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.sug-head .spacer {
+  flex: 1;
+}
+
+.sug-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  line-height: 1.7;
+}
+
+.sug-body {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+
+.sug-effect {
+  font-size: 13px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 9px 12px;
+  line-height: 1.8;
+}
+
+.sug-effect .dim {
+  margin-inline-end: 4px;
+}
+
+.sug-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.sug-foot .spacer {
+  flex: 1;
+}
+
+/* ─── سطل بازیافت ──────────────────────────────────────────────── */
+
+.trash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.trash-main {
+  flex: 1;
+  min-width: 200px;
+}
+
+.trash-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ─── نمودارها ─────────────────────────────────────────────────── */
+
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.donut {
+  width: 190px;
+  height: 190px;
+  flex: 0 0 auto;
+}
+
+.donut-num {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.donut-cap {
+  font-size: 12px;
+}
+
+.legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  min-width: 180px;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 0;
+  font-size: 13.5px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.legend li:last-child {
+  border-bottom: 0;
+}
+
+.legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.legend-label {
+  flex: 1;
+}
+
+.legend-val {
+  font-weight: 700;
+}
+
+.bars {
+  display: grid;
+  gap: 9px;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.bar-label {
+  min-width: 120px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  flex: 1;
+  height: 13px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.bar-val {
+  min-width: 30px;
+  text-align: end;
+  font-weight: 700;
+}
+
+.spark {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.spark-x {
+  font-size: 10px;
+}
+
+/* ─── پنل ایجنت همکار ──────────────────────────────────────────── */
+
+.api-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.api-row:last-of-type {
+  border-bottom: 0;
+}
+
+.api-method {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.api-get {
+  background: var(--later-soft);
+  color: var(--later);
+}
+
+.api-post {
+  background: var(--now-soft);
+  color: var(--now);
+}
+
+.api-url {
+  flex: 1;
+  min-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.api-desc {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+.prompt-box {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 12px;
+  background: var(--surface-2);
+}
+
+.prompt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 13px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prompt-pre {
+  margin: 0;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.9;
+  direction: ltr;
+  text-align: left;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 460px;
+  overflow-y: auto;
+  color: var(--text);
+}
+
+/* ─── ساخت جدول‌ها (کارت وضعیت دیتابیس) ────────────────────────── */
+
+.migrate-box {
+  margin-top: 14px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-2);
+}
+
+.migrate-box h4 {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+}
+
+.migrate-box p {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.85;
+}
+
+.table-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.table-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  direction: ltr;
+}

@@ -266,3 +266,25 @@ export async function checkDatabaseHealth(): Promise<DbHealth> {
     };
   }
 }
+
+// ─── دسترسی سروری به استخر اتصال ─────────────────────────────────
+/**
+ * استخر اتصال را برمی‌گرداند. اگر هیچ متغیر محیطی‌ای تنظیم نشده باشد،
+ * `null` برمی‌گرداند (به‌جای throw) تا لایه‌های بالاتر بتوانند پیام‌های
+ * دوستانه بدهند، نه صفحهٔ سفید.
+ */
+export function getAppPool(): Pool | null {
+  const found = findDatabaseUrl();
+  if (!found) return null;
+  if (looksLikePlaceholder(found.value)) return null;
+  try {
+    return getPool(found);
+  } catch {
+    return null;
+  }
+}
+
+/** آیا دیتابیس قابل استفاده است؟ (بدون تلاش برای اتصال) */
+export function isDatabaseConfigured(): boolean {
+  return getAppPool() !== null;
+}
