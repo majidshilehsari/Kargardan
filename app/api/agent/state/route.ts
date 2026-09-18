@@ -11,13 +11,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  const auth = checkAgentAuth(req);
-  if (!auth.ok) return fail(auth.status, auth.error, auth.hint);
-
   const pool = getAppPool();
-  if (!pool) {
-    return fail(503, 'برنامه به دیتابیس وصل نیست.', 'کارفرما باید متغیر محیطی دیتابیس را تنظیم کند.');
-  }
+  const auth = await checkAgentAuth(req, pool);
+  if (!auth.ok) return fail(auth.status, auth.error, auth.hint);
+  if (!pool) return fail(503, 'برنامه به دیتابیس وصل نیست.', '');
 
   try {
     const { state, revision } = await readState(pool);

@@ -785,3 +785,28 @@ export async function listRevertedSuggestionIds(pool: Pool): Promise<string[]> {
   );
   return res.rows.map((r) => String(r.suggestion_id));
 }
+
+// ─── تنظیمات ساده (کلید/مقدار) ──────────────────────────────────────
+// برای ذخیرهٔ چیزهایی مثل کلید API ایجنت و وضعیت روشن/خاموش بودن دسترسی.
+// جدول `kargardan_settings` از قبل وجود دارد — هیچ تغییر ساختاری لازم نیست.
+
+export async function readSetting(pool: Pool, key: string): Promise<string | null> {
+  const res = await pool.query(
+    `select value from ${TABLES.settings} where key = $1`,
+    [key]
+  );
+  return res.rows[0] ? String(res.rows[0].value) : null;
+}
+
+export async function writeSetting(pool: Pool, key: string, value: string): Promise<void> {
+  await pool.query(
+    `insert into ${TABLES.settings} (key, value, updated_at) values ($1,$2,$3)
+     on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at`,
+    [key, value, Date.now()]
+  );
+}
+
+/** حذف یک تنظیم — فقط برای کلید ایجنت استفاده می‌شود */
+export async function deleteSetting(pool: Pool, key: string): Promise<void> {
+  await pool.query(`delete from ${TABLES.settings} where key = $1`, [key]);
+}

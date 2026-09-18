@@ -1,47 +1,170 @@
-// ─── احراز هویت «ایجنت همکار» ──────────────────────────────────────
+// ─── احراز هویت و کنترل «ایجنت همکار» ─────────────────────────────
 //
-// 🔒 چرا لازم است؟ ایجنت همکار به «کل دیتابیس» دسترسی می‌خواند.
+// 🔒 چرا لازم است؟ ایجنت همکار به «کل دیتابیس» دسترسی خواندن دارد.
 //    اگر این مسیرها باز باشند، هر کسی در اینترنت می‌تواند داده‌های تو را بخواند.
 //
-// طرز کار: یک کلید مخفی در متغیر محیطی `AGENT_API_KEY` می‌گذاری
-// (Vercel → Settings → Environment Variables) و ایجنت همکار آن را
-// در هدر `Authorization: Bearer <کلید>` می‌فرستد.
+// ✅ دیگر هیچ متغیر محیطی‌ای لازم نیست:
+//    • کلید API در همان دیتابیس ساخته می‌شود (جدول kargardan_settings).
+//    • روشن/خاموش بودن دسترسی هم همان‌جا ذخیره می‌شود.
+//    • کنترل هر دو، از تب «🔌 ایجنت همکار» در خودِ برنامه انجام می‌شود.
 //
-// اگر `AGENT_API_KEY` تنظیم نشده باشد، این مسیرها **کاملاً بسته** می‌مانند
-// و به‌جای داده، راهنمای تنظیم کلید برمی‌گردانند. (امن به‌صورت پیش‌فرض)
+// 🔴 کلید توقف (kill switch):
+//    اگر دسترسی «خاموش» باشد، **حتی با کلید درست** هیچ درخواستی پذیرفته نمی‌شود.
+//    این یعنی حتی اگر کلید لو برود، با یک کلیک می‌توانی در را ببندی.
+//
+// ℹ️ سازگاری با گذشته: اگر متغیر محیطی AGENT_API_KEY تنظیم شده باشد،
+//    آن بر کلید دیتابیس مقدم می‌شود (کاربران قدیمی دست‌نخورده می‌مانند).
+//    ولی کلید توقف همیشه اعمال می‌شود.
 
-import { timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+import type { Pool } from 'pg';
+import { readSetting, writeSetting } from './repo';
 
+/** متغیر محیطی اختیاری (مقدم بر کلید دیتابیس، اگر تنظیم شده باشد) */
 export const AGENT_KEY_ENV = 'AGENT_API_KEY';
+
+/** نام تنظیم‌ها در جدول kargardan_settings */
+export const KEY_SETTING = 'agent_api_key';
+export const ENABLED_SETTING = 'agent_access_enabled';
+
+export interface AgentAccessInfo {
+  /** آیا دسترسی باز است؟ (کلید توقف) */
+  enabled: boolean;
+  /** آیا کلیدی وجود دارد؟ */
+  keyConfigured: boolean;
+  /** کلید از کجا می‌آید */
+  keySource: 'db' | 'env' | 'none';
+  /** آیا متغیر محیطی بر کلید دیتابیس مقدم شده؟ */
+  envOverride: boolean;
+  /**
+   * کلید برای نمایش در رابط کاربری خود برنامه.
+   * اگر از متغیر محیطی بیاید، خالی است (چون نباید در مرورگر دیده شود).
+   */
+  key: string;
+  /** آخرین به‌روزرسانی کلید */
+  updatedAt: number | null;
+}
+
+function envKey(): string {
+  return (process.env[AGENT_KEY_ENV] ?? '').trim();
+}
+
+/** یک کلید تصادفی ۴۳ کاراکتری می‌سازد */
+export function generateAgentKey(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+// ─── خواندن وضعیت ─────────────────────────────────────────────────
+export async function getAgentAccess(pool: Pool): Promise<AgentAccessInfo> {
+  const [keyRow, enabledRow] = await Promise.all([
+    pool.query(`select value, updated_at from kargardan_settings where key = $1`, [KEY_SETTING]),
+    readSetting(pool, ENABLED_SETTING),
+  ]);
+
+  const dbKey = keyRow.rows[0] ? String(keyRow.rows[0].value).trim() : '';
+  const updatedAt = keyRow.rows[0]?.updated_at ? Number(keyRow.rows[0].updated_at) : null;
+  const env = envKey();
+  const override = env.length > 0;
+
+  return {
+    // پیش‌فرض «باز» است؛ فقط وقتی صریحاً 'false' ذخیره شده باشد بسته می‌شود
+    enabled: enabledRow === null ? true : enabledRow === 'true',
+    keyConfigured: override || dbKey.length > 0,
+    keySource: override ? 'env' : dbKey ? 'db' : 'none',
+    envOverride: override,
+    key: override ? '' : dbKey,
+    updatedAt,
+  };
+}
+
+// ─── ساخت / بازسازی کلید ──────────────────────────────────────────
+
+/** اگر کلیدی وجود ندارد، یکی می‌سازد و دسترسی را باز می‌کند */
+export async function ensureAgentKey(pool: Pool): Promise<string> {
+  const current = (await readSetting(pool, KEY_SETTING))?.trim() ?? '';
+  if (current) return current;
+
+  const fresh = generateAgentKey();
+  await writeSetting(pool, KEY_SETTING, fresh);
+
+  // اولین باری که کلید ساخته می‌شود، دسترسی باز است
+  await writeSetting(pool, ENABLED_SETTING, 'true');
+  return fresh;
+}
+
+/** 🔄 کلید جدید می‌سازد. کلید قبلی **بلافاصله** بی‌اعتبار می‌شود. */
+export async function regenerateAgentKey(pool: Pool): Promise<string> {
+  const fresh = generateAgentKey();
+  await writeSetting(pool, KEY_SETTING, fresh);
+  return fresh;
+}
+
+/** ⏸ / ▶️ کلید توقف */
+export async function setAgentEnabled(pool: Pool, enabled: boolean): Promise<void> {
+  await writeSetting(pool, ENABLED_SETTING, enabled ? 'true' : 'false');
+}
+
+// ─── بررسی درخواست ────────────────────────────────────────────────
 
 export type AuthResult =
   | { ok: true }
-  | { ok: false; status: number; error: string; hint: string };
+  | { ok: false; status: 503 | 403 | 401; error: string; hint: string };
 
 /** مقایسهٔ امن کلیدها — مقاوم در برابر حملات زمان‌سنجی */
 function safeEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a, 'utf8');
   const bb = Buffer.from(b, 'utf8');
   if (ba.length !== bb.length) {
-    // طول‌ها متفاوت است؛ یک مقایسهٔ ساختگی انجام بده تا زمان پاسخ لو ندهد
-    timingSafeEqual(ba, ba);
+    timingSafeEqual(ba, ba); // یک مقایسهٔ ساختگی، تا زمان پاسخ لو ندهد
     return false;
   }
   return timingSafeEqual(ba, bb);
 }
 
-export function checkAgentAuth(req: Request): AuthResult {
-  const expected = (process.env[AGENT_KEY_ENV] ?? '').trim();
-
-  if (!expected) {
+/**
+ * بررسی دسترسی ایجنت همکار.
+ * ترتیب بررسی: دیتابیس ← کلید توقف ← کلید
+ */
+export async function checkAgentAuth(req: Request, pool: Pool | null): Promise<AuthResult> {
+  if (!pool) {
     return {
       ok: false,
       status: 503,
-      error: 'دسترسی ایجنت همکار هنوز فعال نشده است.',
+      error: 'برنامه به دیتابیس وصل نیست.',
+      hint: 'کارگردان بدون دیتابیس نمی‌تواند دسترسی ایجنت را بررسی کند.',
+    };
+  }
+
+  let access: AgentAccessInfo;
+  try {
+    access = await getAgentAccess(pool);
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      error: 'خواندن تنظیمات دسترسی ایجنت ممکن نشد.',
+      hint: 'کمی بعد دوباره تلاش کن.',
+    };
+  }
+
+  if (!access.keyConfigured) {
+    return {
+      ok: false,
+      status: 503,
+      error: 'کلید ایجنت همکار هنوز ساخته نشده است.',
+      hint: 'در برنامه، تب «🔌 ایجنت همکار» را باز کن — کلید همان‌جا ساخته می‌شود.',
+    };
+  }
+
+  // 🔴 کلید توقف: حتی با کلید درست هم در بسته است
+  if (!access.enabled) {
+    return {
+      ok: false,
+      status: 403,
+      error: 'دسترسی ایجنت همکار بسته است.',
       hint:
-        `برای فعال‌کردن، متغیر محیطی ${AGENT_KEY_ENV} را در ` +
-        'Vercel → Settings → Environment Variables (یا فایل .env.local) با یک رشتهٔ تصادفی طولانی مقداردهی کن، ' +
-        'و بعد از راه‌اندازی مجدد، همان کلید را در هدر Authorization: Bearer <کلید> بفرست.',
+        'کارفرما با یک کلیک این دسترسی را قطع کرده است. ' +
+        'برای بازکردن، در برنامه → تب «🔌 ایجنت همکار» → دکمهٔ «فعال‌سازی» را بزن.',
     };
   }
 
@@ -50,12 +173,13 @@ export function checkAgentAuth(req: Request): AuthResult {
   const direct = (req.headers.get('x-agent-key') ?? '').trim();
   const provided = bearer || direct;
 
-  if (!provided || !safeEqual(provided, expected)) {
+  if (!provided || !safeEqual(provided, access.key)) {
     return {
       ok: false,
       status: 401,
       error: 'کلید دسترسی ایجنت نادرست یا غایب است.',
-      hint: 'هدر Authorization: Bearer <AGENT_API_KEY> را بفرست.',
+      hint:
+        'هدر Authorization: Bearer <کلید> را بفرست. کلید را از تب «🔌 ایجنت همکار» بگیر.',
     };
   }
 

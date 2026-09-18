@@ -11,18 +11,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  const auth = checkAgentAuth(req);
+  const pool = getAppPool();
+  const auth = await checkAgentAuth(req, pool);
   if (!auth.ok) {
     return fail(auth.status, auth.error, auth.hint);
   }
-
-  const pool = getAppPool();
   if (!pool) {
-    return fail(
-      503,
-      'برنامه به دیتابیس وصل نیست.',
-      'کارفرما باید متغیر محیطی دیتابیس را تنظیم کند.'
-    );
+    return fail(503, 'برنامه به دیتابیس وصل نیست.', '');
   }
 
   let counts = { tasks: 0, projects: 0, inbox: 0, pendingSuggestions: 0 };
@@ -139,7 +134,9 @@ export async function GET(req: Request) {
       'حتی پس از تأیید و اجرا، کارفرما می‌تواند پیشنهاد را برگرداند (revert).',
       'هیچ چیزی در این برنامه پاک نمی‌شود؛ حذف یعنی رفتن به سطل بازیافت.',
       'پیشنهادهای کوچک و مشخص بده؛ هر پیشنهاد یک تغییر.',
+      'دسترسی تو از داخل برنامه قابل قطع است؛ اگر ۴۰۳ گرفتی یعنی کارفرما در را بسته است — دوباره تلاش نکن.',
       'همیشه در «body» توضیح بده چرا این پیشنهاد را می‌دهی.',
+      'کد ۴۰۳ = دسترسی از طرف کارفرما قطع شده. کد ۴۰۱ = کلید اشتباه است.',
       'از ساخت پروژهٔ فعالِ زیاد پرهیز کن — سقف پیش‌فرض ۳ جبههٔ فعال است.',
     ],
 

@@ -20,10 +20,9 @@ const ALLOWED_KINDS: SuggestionKind[] = [
 
 /** فهرست پیشنهادها را ببین (تا ایجنت پیشنهاد تکراری ندهد) */
 export async function GET(req: Request) {
-  const auth = checkAgentAuth(req);
-  if (!auth.ok) return fail(auth.status, auth.error, auth.hint);
-
   const pool = getAppPool();
+  const auth = await checkAgentAuth(req, pool);
+  if (!auth.ok) return fail(auth.status, auth.error, auth.hint);
   if (!pool) return fail(503, 'برنامه به دیتابیس وصل نیست.', '');
 
   try {
@@ -48,10 +47,9 @@ interface SuggestionBody {
 }
 
 export async function POST(req: Request) {
-  const auth = checkAgentAuth(req);
-  if (!auth.ok) return fail(auth.status, auth.error, auth.hint);
-
   const pool = getAppPool();
+  const auth = await checkAgentAuth(req, pool);
+  if (!auth.ok) return fail(auth.status, auth.error, auth.hint);
   if (!pool) return fail(503, 'برنامه به دیتابیس وصل نیست.', '');
 
   const raw = await readJson<SuggestionBody>(req);

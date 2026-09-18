@@ -1,22 +1,38 @@
-// ─── API: آیا درِ ایجنت همکار باز است؟ ──────────────────────────────
-// فقط یک بله/خیر برمی‌گرداند — هیچ دادهٔ حساسی اینجا نیست.
+// ─── API: وضعیت درِ ایجنت همکار (برای رابط کاربری خود برنامه) ───────
+// فقط وضعیت را می‌گوید — کلید اینجا نمایش داده نمی‌شود (آن در /api/agent/key است).
 import { NextResponse } from 'next/server';
-import { AGENT_KEY_ENV } from '@/lib/agent-auth';
 import { getAppPool } from '@/lib/db';
+import { getAgentAccess } from '@/lib/agent-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   const origin = new URL(req.url).origin;
-  const configured = Boolean((process.env[AGENT_KEY_ENV] ?? '').trim());
+  const pool = getAppPool();
+
+  let enabled = false;
+  let keyConfigured = false;
+  let keySource: 'db' | 'env' | 'none' = 'none';
+
+  if (pool) {
+    try {
+      const access = await getAgentAccess(pool);
+      enabled = access.enabled;
+      keyConfigured = access.keyConfigured;
+      keySource = access.keySource;
+    } catch {
+      /* دیتابیس در دسترس نیست */
+    }
+  }
 
   return NextResponse.json(
     {
       ok: true,
-      agentAccessEnabled: configured,
-      keyEnvVar: AGENT_KEY_ENV,
-      databaseConnected: getAppPool() !== null,
+      agentAccessEnabled: enabled && keyConfigured,
+      keyConfigured,
+      keySource,
+      databaseConnected: pool !== null,
       baseUrl: origin,
       endpoints: {
         context: `${origin}/api/agent/context`,
